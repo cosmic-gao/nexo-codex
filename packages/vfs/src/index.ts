@@ -50,11 +50,15 @@ export {
 export {
   parseGitHubUrl,
   getDefaultBranch,
+  getRepoInfo,
+  getRepoBranches,
   getRepoTree,
   getFileContent,
   loadGitHubRepo,
   loadFileContent,
 } from "./github-loader"
+
+export type { GitBranchInfo } from "./github-loader"
 
 // Patch Utils
 export {

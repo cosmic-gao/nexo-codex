@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react"
-import type { AIModification, AIModificationStatus, Patch, PatchResult, HistoryEntry } from "@nexo/types"
+import type { AIModification, AIModificationStatus, AIModificationCategory, Patch, PatchResult, HistoryEntry } from "@nexo/types"
 import { 
   generateLinePatches, 
   createPatch, 
@@ -8,6 +8,243 @@ import {
   validatePatch,
   HistoryManager 
 } from "@nexo/vfs"
+
+/**
+ * AI Provider configuration
+ */
+export interface AIProviderConfig {
+  provider: "openai" | "anthropic" | "custom"
+  apiKey: string
+  baseUrl?: string
+  model?: string
+  maxTokens?: number
+  temperature?: number
+}
+
+/**
+ * AI Review request options
+ */
+export interface AIReviewOptions {
+  filePath: string
+  fileName: string
+  language: string
+  content: string
+  instruction?: string  // Custom instruction for the AI
+  context?: string      // Additional context (e.g., related files)
+  category?: AIModificationCategory
+}
+
+/**
+ * AI Review result
+ */
+export interface AIReviewResult {
+  success: boolean
+  modification?: AIModification
+  error?: string
+}
+
+/**
+ * Default AI provider configuration
+ */
+const DEFAULT_AI_CONFIG: AIProviderConfig = {
+  provider: "openai",
+  apiKey: "",
+  model: "gpt-4o",
+  maxTokens: 4096,
+  temperature: 0.2,
+}
+
+/**
+ * Generate unique ID
+ */
+function generateId(): string {
+  return `mod-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+/**
+ * Parse AI response to extract code modifications
+ */
+function parseAIResponse(
+  response: string,
+  options: AIReviewOptions
+): Partial<AIModification> | null {
+  try {
+    // Try to parse JSON response first
+    const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[1])
+      return {
+        title: parsed.title || "AI Suggestion",
+        description: parsed.description || "",
+        reason: parsed.reason || "",
+        modifiedContent: parsed.modifiedContent || parsed.code || "",
+        category: parsed.category || "refactor",
+        severity: parsed.severity || "info",
+        confidence: parsed.confidence || 0.8,
+      }
+    }
+
+    // Try to extract code block
+    const codeMatch = response.match(/```(?:\w+)?\s*([\s\S]*?)\s*```/)
+    if (codeMatch) {
+      return {
+        title: "AI Code Improvement",
+        description: "AI suggested improvements for this file",
+        reason: "Based on best practices and code analysis",
+        modifiedContent: codeMatch[1],
+        category: options.category || "refactor",
+        severity: "info",
+        confidence: 0.75,
+      }
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Call OpenAI API
+ */
+async function callOpenAI(
+  config: AIProviderConfig,
+  prompt: string,
+  systemPrompt: string
+): Promise<string> {
+  const baseUrl = config.baseUrl || "https://api.openai.com/v1"
+  
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.model || "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: config.maxTokens || 4096,
+      temperature: config.temperature || 0.2,
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error?.message || `API error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return data.choices?.[0]?.message?.content || ""
+}
+
+/**
+ * Call Anthropic API
+ */
+async function callAnthropic(
+  config: AIProviderConfig,
+  prompt: string,
+  systemPrompt: string
+): Promise<string> {
+  const baseUrl = config.baseUrl || "https://api.anthropic.com/v1"
+  
+  const response = await fetch(`${baseUrl}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": config.apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: config.model || "claude-3-5-sonnet-20241022",
+      max_tokens: config.maxTokens || 4096,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: prompt },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error?.message || `API error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return data.content?.[0]?.text || ""
+}
+
+/**
+ * Call AI provider
+ */
+async function callAI(
+  config: AIProviderConfig,
+  prompt: string,
+  systemPrompt: string
+): Promise<string> {
+  switch (config.provider) {
+    case "openai":
+      return callOpenAI(config, prompt, systemPrompt)
+    case "anthropic":
+      return callAnthropic(config, prompt, systemPrompt)
+    case "custom":
+      // For custom providers, use OpenAI-compatible API
+      return callOpenAI(config, prompt, systemPrompt)
+    default:
+      throw new Error(`Unknown provider: ${config.provider}`)
+  }
+}
+
+/**
+ * Build system prompt for code review
+ */
+function buildSystemPrompt(): string {
+  return `You are an expert code reviewer. Analyze the provided code and suggest improvements.
+
+Your response should be in JSON format within a markdown code block:
+
+\`\`\`json
+{
+  "title": "Brief title of the change",
+  "description": "Detailed description of what you changed",
+  "reason": "Why this change improves the code",
+  "modifiedContent": "The complete modified code",
+  "category": "bug-fix|refactor|optimization|security|style|documentation|feature|test|dependency",
+  "severity": "info|warning|critical",
+  "confidence": 0.0-1.0
+}
+\`\`\`
+
+Guidelines:
+- Only suggest changes that improve code quality, performance, or security
+- Keep the original functionality intact unless explicitly asked to change it
+- Provide complete, working code in modifiedContent
+- Be specific in your descriptions and reasons
+- Set appropriate severity based on the importance of the change`
+}
+
+/**
+ * Build user prompt for code review
+ */
+function buildUserPrompt(options: AIReviewOptions): string {
+  let prompt = `Please review and improve the following ${options.language} code from file "${options.fileName}":\n\n`
+  
+  prompt += "```" + options.language + "\n"
+  prompt += options.content
+  prompt += "\n```\n"
+
+  if (options.instruction) {
+    prompt += `\nSpecific instruction: ${options.instruction}\n`
+  }
+
+  if (options.context) {
+    prompt += `\nAdditional context:\n${options.context}\n`
+  }
+
+  return prompt
+}
 
 /**
  * Sample AI modifications for demo
@@ -183,11 +420,29 @@ interface FileContentStore {
   [path: string]: string
 }
 
-export function useAIReview() {
+export interface UseAIReviewOptions {
+  /** Initial AI provider configuration */
+  aiConfig?: Partial<AIProviderConfig>
+  /** Maximum history size for undo/redo */
+  maxHistorySize?: number
+}
+
+export function useAIReview(options: UseAIReviewOptions = {}) {
   const [modifications, setModifications] = useState<AIModification[]>([])
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false)
   const [appliedPatches, setAppliedPatches] = useState<Patch[]>([])
-  const [historyManager] = useState(() => new HistoryManager({ maxHistorySize: 50 }))
+  const [historyManager] = useState(() => new HistoryManager({ maxHistorySize: options.maxHistorySize ?? 50 }))
+  
+  // AI provider configuration
+  const [aiConfig, setAiConfig] = useState<AIProviderConfig>(() => ({
+    ...DEFAULT_AI_CONFIG,
+    ...options.aiConfig,
+  }))
+  
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [reviewingFiles, setReviewingFiles] = useState<Set<string>>(new Set())
   
   // Simulated file content store (in real app, this would come from VFS)
   const [fileContents, setFileContents] = useState<FileContentStore>({})
@@ -239,6 +494,7 @@ export function useAIReview() {
     const samples = createSampleModifications()
     setModifications(samples)
     setIsReviewPanelOpen(true)
+    setError(null)
     
     // Initialize file contents with original content
     const contents: FileContentStore = {}
@@ -246,6 +502,172 @@ export function useAIReview() {
       contents[mod.filePath] = mod.originalContent
     }
     setFileContents(contents)
+  }, [])
+
+  // Update AI provider configuration
+  const updateAIConfig = useCallback((newConfig: Partial<AIProviderConfig>) => {
+    setAiConfig((prev) => ({ ...prev, ...newConfig }))
+  }, [])
+
+  // Check if AI is configured
+  const isAIConfigured = useMemo(() => {
+    return Boolean(aiConfig.apiKey && aiConfig.apiKey.length > 0)
+  }, [aiConfig.apiKey])
+
+  // Request AI review for a file
+  const requestAIReview = useCallback(async (
+    reviewOptions: AIReviewOptions
+  ): Promise<AIReviewResult> => {
+    if (!isAIConfigured) {
+      const errorMsg = "AI provider not configured. Please set an API key."
+      setError(errorMsg)
+      return { success: false, error: errorMsg }
+    }
+
+    // Mark file as being reviewed
+    setReviewingFiles((prev) => new Set(prev).add(reviewOptions.filePath))
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const systemPrompt = buildSystemPrompt()
+      const userPrompt = buildUserPrompt(reviewOptions)
+
+      const response = await callAI(aiConfig, userPrompt, systemPrompt)
+      const parsed = parseAIResponse(response, reviewOptions)
+
+      if (!parsed || !parsed.modifiedContent) {
+        throw new Error("Failed to parse AI response")
+      }
+
+      // Check if the content actually changed
+      if (parsed.modifiedContent.trim() === reviewOptions.content.trim()) {
+        // No changes suggested
+        return { success: true }
+      }
+
+      // Create the modification
+      const modification: AIModification = {
+        id: generateId(),
+        filePath: reviewOptions.filePath,
+        fileName: reviewOptions.fileName,
+        language: reviewOptions.language,
+        originalContent: reviewOptions.content,
+        modifiedContent: parsed.modifiedContent,
+        title: parsed.title || "AI Suggestion",
+        description: parsed.description || "",
+        reason: parsed.reason || "",
+        category: parsed.category || reviewOptions.category || "refactor",
+        severity: parsed.severity || "info",
+        status: "pending",
+        createdAt: new Date(),
+        confidence: parsed.confidence || 0.8,
+      }
+
+      // Add to modifications list
+      setModifications((prev) => [...prev, modification])
+      
+      // Store original content
+      setFileContents((prev) => ({
+        ...prev,
+        [reviewOptions.filePath]: reviewOptions.content,
+      }))
+
+      // Open review panel
+      setIsReviewPanelOpen(true)
+
+      return { success: true, modification }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Unknown error occurred"
+      setError(errorMsg)
+      return { success: false, error: errorMsg }
+    } finally {
+      setIsLoading(false)
+      setReviewingFiles((prev) => {
+        const next = new Set(prev)
+        next.delete(reviewOptions.filePath)
+        return next
+      })
+    }
+  }, [aiConfig, isAIConfigured])
+
+  // Request AI review for multiple files
+  const requestBatchReview = useCallback(async (
+    files: AIReviewOptions[],
+    instruction?: string
+  ): Promise<AIReviewResult[]> => {
+    setIsLoading(true)
+    setError(null)
+
+    const results: AIReviewResult[] = []
+
+    for (const file of files) {
+      const result = await requestAIReview({
+        ...file,
+        instruction: instruction || file.instruction,
+      })
+      results.push(result)
+    }
+
+    setIsLoading(false)
+    return results
+  }, [requestAIReview])
+
+  // Add a modification manually
+  const addModification = useCallback((
+    modificationData: Omit<AIModification, "id" | "status" | "createdAt">
+  ) => {
+    const modification: AIModification = {
+      ...modificationData,
+      id: generateId(),
+      status: "pending",
+      createdAt: new Date(),
+    }
+
+    setModifications((prev) => [...prev, modification])
+    
+    // Store original content
+    setFileContents((prev) => ({
+      ...prev,
+      [modificationData.filePath]: modificationData.originalContent,
+    }))
+
+    setIsReviewPanelOpen(true)
+    return modification
+  }, [])
+
+  // Add multiple modifications
+  const addModifications = useCallback((
+    modificationsData: Array<Omit<AIModification, "id" | "status" | "createdAt">>
+  ) => {
+    const newModifications: AIModification[] = modificationsData.map((data) => ({
+      ...data,
+      id: generateId(),
+      status: "pending" as const,
+      createdAt: new Date(),
+    }))
+
+    setModifications((prev) => [...prev, ...newModifications])
+    
+    // Store original contents
+    const contents: FileContentStore = {}
+    for (const mod of newModifications) {
+      contents[mod.filePath] = mod.originalContent
+    }
+    setFileContents((prev) => ({ ...prev, ...contents }))
+
+    setIsReviewPanelOpen(true)
+    return newModifications
+  }, [])
+
+  // Check if a file is currently being reviewed
+  const isFileBeingReviewed = useCallback((filePath: string) => {
+    return reviewingFiles.has(filePath)
+  }, [reviewingFiles])
+
+  // Clear error
+  const clearError = useCallback(() => {
+    setError(null)
   }, [])
 
   // Validate a modification before applying
@@ -415,11 +837,30 @@ export function useAIReview() {
     appliedPatches,
     historyStats,
     
+    // Loading and error states
+    isLoading,
+    error,
+    clearError,
+    
+    // AI Configuration
+    aiConfig,
+    updateAIConfig,
+    isAIConfigured,
+    
     // Panel control
     setIsReviewPanelOpen,
     
     // Load
     loadSampleModifications,
+    
+    // AI Review
+    requestAIReview,
+    requestBatchReview,
+    isFileBeingReviewed,
+    
+    // Manual modifications
+    addModification,
+    addModifications,
     
     // Validation
     validateModification,

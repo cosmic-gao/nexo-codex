@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import Editor, { type OnMount, type OnChange, loader } from "@monaco-editor/react"
 import * as monaco from "monaco-editor"
 import type { editor } from "monaco-editor"
@@ -62,10 +62,16 @@ loader.init().then((monacoInstance) => {
   })
 })
 
+export interface CursorPosition {
+  line: number
+  column: number
+}
+
 interface CodeEditorProps {
   defaultValue?: string
   language?: string
   onChange?: (value: string | undefined) => void
+  onCursorPositionChange?: (position: CursorPosition) => void
 }
 
 const defaultCode = `// Welcome to NexoCodex
@@ -83,12 +89,38 @@ export function CodeEditor({
   defaultValue = defaultCode,
   language = "typescript",
   onChange,
+  onCursorPositionChange,
 }: CodeEditorProps) {
   const [, setEditorInstance] = useState<editor.IStandaloneCodeEditor | null>(null)
+  
+  // Use ref to always have the latest callback without causing re-mounts
+  const onCursorPositionChangeRef = useRef(onCursorPositionChange)
+  useEffect(() => {
+    onCursorPositionChangeRef.current = onCursorPositionChange
+  }, [onCursorPositionChange])
 
-  const handleEditorDidMount: OnMount = useCallback((editor) => {
-    setEditorInstance(editor)
-    editor.focus()
+  const handleEditorDidMount: OnMount = useCallback((editorRef) => {
+    setEditorInstance(editorRef)
+    editorRef.focus()
+
+    // Set initial cursor position
+    const position = editorRef.getPosition()
+    if (position && onCursorPositionChangeRef.current) {
+      onCursorPositionChangeRef.current({
+        line: position.lineNumber,
+        column: position.column,
+      })
+    }
+
+    // Listen for cursor position changes
+    editorRef.onDidChangeCursorPosition((e) => {
+      if (onCursorPositionChangeRef.current) {
+        onCursorPositionChangeRef.current({
+          line: e.position.lineNumber,
+          column: e.position.column,
+        })
+      }
+    })
   }, [])
 
   const handleChange: OnChange = useCallback(

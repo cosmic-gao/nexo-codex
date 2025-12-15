@@ -30,6 +30,23 @@ interface GitHubContent {
   download_url: string | null
 }
 
+interface GitHubBranch {
+  name: string
+  commit: {
+    sha: string
+    url: string
+  }
+  protected: boolean
+}
+
+export interface GitBranchInfo {
+  name: string
+  sha: string
+  isProtected: boolean
+  isDefault: boolean
+  isRemote?: boolean
+}
+
 /**
  * Parse GitHub URL to extract owner and repo
  */
@@ -107,6 +124,23 @@ async function fetchGitHub(
 }
 
 /**
+ * Get repository info including default branch
+ */
+export async function getRepoInfo(
+  owner: string,
+  repo: string,
+  token?: string
+): Promise<{ defaultBranch: string; isPrivate: boolean; description: string | null }> {
+  const response = await fetchGitHub(`/repos/${owner}/${repo}`, token)
+  const data = await response.json()
+  return {
+    defaultBranch: data.default_branch,
+    isPrivate: data.private,
+    description: data.description,
+  }
+}
+
+/**
  * Get the default branch of a repository
  */
 export async function getDefaultBranch(
@@ -114,9 +148,62 @@ export async function getDefaultBranch(
   repo: string,
   token?: string
 ): Promise<string> {
-  const response = await fetchGitHub(`/repos/${owner}/${repo}`, token)
-  const data = await response.json()
-  return data.default_branch
+  const info = await getRepoInfo(owner, repo, token)
+  return info.defaultBranch
+}
+
+/**
+ * Get all branches of a repository
+ */
+export async function getRepoBranches(
+  owner: string,
+  repo: string,
+  token?: string
+): Promise<GitBranchInfo[]> {
+  const branches: GitBranchInfo[] = []
+  
+  // Get repo info for default branch
+  const repoInfo = await getRepoInfo(owner, repo, token)
+  const defaultBranch = repoInfo.defaultBranch
+  
+  // Get all branches (paginated)
+  let page = 1
+  const perPage = 100
+  let hasMore = true
+  
+  while (hasMore) {
+    const response = await fetchGitHub(
+      `/repos/${owner}/${repo}/branches?per_page=${perPage}&page=${page}`,
+      token
+    )
+    const data: GitHubBranch[] = await response.json()
+    
+    for (const branch of data) {
+      branches.push({
+        name: branch.name,
+        sha: branch.commit.sha,
+        isProtected: branch.protected,
+        isDefault: branch.name === defaultBranch,
+      })
+    }
+    
+    hasMore = data.length === perPage
+    page++
+    
+    // Safety limit
+    if (page > 10) break
+  }
+  
+  // Sort: default first, then protected, then alphabetically
+  branches.sort((a, b) => {
+    if (a.isDefault && !b.isDefault) return -1
+    if (!a.isDefault && b.isDefault) return 1
+    if (a.isProtected && !b.isProtected) return -1
+    if (!a.isProtected && b.isProtected) return 1
+    return a.name.localeCompare(b.name)
+  })
+  
+  return branches
 }
 
 /**

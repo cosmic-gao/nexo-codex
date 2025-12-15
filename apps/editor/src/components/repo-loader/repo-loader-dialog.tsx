@@ -7,7 +7,8 @@ import {
   Upload,
   Link2,
   Key,
-  Sparkles
+  Sparkles,
+  X
 } from "lucide-react"
 
 // GitHub icon from Simple Icons (more refined version)
@@ -150,9 +151,38 @@ export function RepoLoaderDialog({
           style={{ 
             padding: "24px 24px 20px",
             borderBottom: "1px solid #f0f0f0",
+            position: "relative",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              border: "none",
+              backgroundColor: "rgba(0, 0, 0, 0.04)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.08)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.04)"
+            }}
+          >
+            <X style={{ width: 16, height: 16, color: "#6b7280" }} />
+          </button>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 14, paddingRight: 40 }}>
             <div 
               style={{ 
                 width: 48, 

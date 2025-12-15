@@ -2,9 +2,11 @@ import { useState, useCallback, useMemo } from "react"
 import { 
   VirtualFileSystem, 
   loadGitHubRepo,
+  getRepoBranches,
   type LoadProgress,
   type GitHubRepoInfo,
-  type VirtualFile
+  type VirtualFile,
+  type GitBranchInfo,
 } from "@nexo/vfs"
 import type { FileNode, AIStatus } from "@nexo/types"
 
@@ -48,6 +50,12 @@ export function useVirtualFS() {
   const [repoName, setRepoName] = useState<string>("project")
   const [aiStatuses, setAIStatuses] = useState<Map<string, AIStatus>>(new Map())
   const [version, setVersion] = useState(0) // For triggering re-renders
+  
+  // Git branch state
+  const [branches, setBranches] = useState<GitBranchInfo[]>([])
+  const [currentBranch, setCurrentBranch] = useState<string>("main")
+  const [repoInfo, setRepoInfo] = useState<GitHubRepoInfo | null>(null)
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false)
 
   // Get file tree as FileNode[]
   const fileTree = useMemo((): FileNode[] => {
@@ -101,11 +109,54 @@ export function useVirtualFS() {
     }
   }, [vfs])
 
-  // Load from GitHub
-  const loadGitHub = useCallback(async (info: GitHubRepoInfo) => {
+  // Fetch branches for a GitHub repository
+  const fetchBranches = useCallback(async (info: GitHubRepoInfo) => {
+    setIsLoadingBranches(true)
+    try {
+      const branchList = await getRepoBranches(info.owner, info.repo, info.token)
+      setBranches(branchList)
+      
+      // Set current branch
+      const defaultBranch = branchList.find(b => b.isDefault)
+      if (defaultBranch) {
+        setCurrentBranch(info.branch || defaultBranch.name)
+      }
+      
+      return branchList
+    } catch (err) {
+      console.error("Failed to fetch branches:", err)
+      return []
+    } finally {
+      setIsLoadingBranches(false)
+    }
+  }, [])
+
+  // Switch to a different branch (reloads the repository)
+  const switchBranch = useCallback(async (branchName: string) => {
+    if (!repoInfo) return false
+    
+    // Update current branch first for UI feedback
+    setCurrentBranch(branchName)
+    
+    // Reload the repository with the new branch
+    const newInfo: GitHubRepoInfo = {
+      ...repoInfo,
+      branch: branchName,
+    }
+    
+    await loadGitHubWithBranches(newInfo)
+    return true
+  }, [repoInfo])
+
+  // Load from GitHub with branches
+  const loadGitHubWithBranches = useCallback(async (info: GitHubRepoInfo) => {
     setProgress({ phase: "scanning", current: 0, total: 0, message: "Connecting to GitHub..." })
+    setRepoInfo(info)
     
     try {
+      // Fetch branches in parallel with repo content
+      const branchesPromise = fetchBranches(info)
+      
       const { files, totalSize } = await loadGitHubRepo(info, setProgress)
       
       // Clear and reload VFS
@@ -140,6 +191,9 @@ export function useVirtualFS() {
         }
       }
       
+      // Wait for branches to finish loading
+      await branchesPromise
+      
       setRepoName(`${info.owner}/${info.repo}`)
       setIsLoaded(true)
       setVersion((v) => v + 1)
@@ -159,7 +213,12 @@ export function useVirtualFS() {
         message: (err as Error).message,
       })
     }
-  }, [vfs])
+  }, [vfs, fetchBranches])
+
+  // Load from GitHub (alias for loadGitHubWithBranches)
+  const loadGitHub = useCallback(async (info: GitHubRepoInfo) => {
+    await loadGitHubWithBranches(info)
+  }, [loadGitHubWithBranches])
 
   // Get file content
   const getFileContent = useCallback(async (path: string): Promise<string | null> => {
@@ -235,8 +294,17 @@ export function useVirtualFS() {
     setProgress(null)
     setRepoName("project")
     setAIStatuses(new Map())
+    setBranches([])
+    setCurrentBranch("main")
+    setRepoInfo(null)
     setVersion((v) => v + 1)
   }, [vfs])
+
+  // Refresh branches list
+  const refreshBranches = useCallback(async () => {
+    if (!repoInfo) return
+    await fetchBranches(repoInfo)
+  }, [repoInfo, fetchBranches])
 
   return {
     // State
@@ -245,10 +313,19 @@ export function useVirtualFS() {
     repoName,
     fileTree,
     
+    // Git branch state
+    branches,
+    currentBranch,
+    isLoadingBranches,
+    
     // Load operations
     loadLocal,
     loadGitHub,
     clear,
+    
+    // Branch operations
+    switchBranch,
+    refreshBranches,
     
     // File operations
     getFileContent,
