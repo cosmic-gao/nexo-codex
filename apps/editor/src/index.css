@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  
+  /* Dark cyberpunk palette */
+  --color-background: oklch(0.13 0.02 260);
+  --color-foreground: oklch(0.95 0.01 260);
+  --color-card: oklch(0.16 0.02 260);
+  --color-card-foreground: oklch(0.95 0.01 260);
+  --color-popover: oklch(0.16 0.02 260);
+  --color-popover-foreground: oklch(0.95 0.01 260);
+  --color-primary: oklch(0.75 0.18 180);
+  --color-primary-foreground: oklch(0.13 0.02 260);
+  --color-secondary: oklch(0.22 0.03 260);
+  --color-secondary-foreground: oklch(0.95 0.01 260);
+  --color-muted: oklch(0.22 0.03 260);
+  --color-muted-foreground: oklch(0.65 0.02 260);
+  --color-accent: oklch(0.70 0.20 320);
+  --color-accent-foreground: oklch(0.95 0.01 260);
+  --color-destructive: oklch(0.60 0.22 25);
+  --color-destructive-foreground: oklch(0.95 0.01 260);
+  --color-border: oklch(0.28 0.04 260);
+  --color-input: oklch(0.22 0.03 260);
+  --color-ring: oklch(0.75 0.18 180);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
