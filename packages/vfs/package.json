@@ -1,0 +1,19 @@
+{
+  "name": "@nexo/vfs",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Virtual File System for Nexo Codex",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@nexo/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}
+

@@ -1,78 +1,132 @@
-import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
-import { Play, Copy, Download, Settings, Sparkles } from "lucide-react"
+import { 
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@nexo/ui"
+import { 
+  Play, 
+  Copy, 
+  Download, 
+  Settings, 
+  FolderOpen, 
+  Search,
+  Code2
+} from "lucide-react"
 
 interface EditorHeaderProps {
-  language: string
-  onLanguageChange: (language: string) => void
+  repoName?: string
   onRun?: () => void
   onCopy?: () => void
   onDownload?: () => void
+  onOpenRepo?: () => void
+  onSearch?: () => void
 }
 
-const languages = [
-  { value: "typescript", label: "TypeScript" },
-  { value: "javascript", label: "JavaScript" },
-  { value: "python", label: "Python" },
-  { value: "rust", label: "Rust" },
-  { value: "go", label: "Go" },
-  { value: "java", label: "Java" },
-  { value: "cpp", label: "C++" },
-  { value: "c", label: "C" },
-  { value: "html", label: "HTML" },
-  { value: "css", label: "CSS" },
-  { value: "json", label: "JSON" },
-  { value: "markdown", label: "Markdown" },
-]
-
 export function EditorHeader({
-  language,
-  onLanguageChange,
+  repoName,
   onRun,
   onCopy,
   onDownload,
+  onOpenRepo,
+  onSearch,
 }: EditorHeaderProps) {
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card/50 px-4 backdrop-blur-sm">
+    <header className="flex h-12 items-center justify-between border-b border-border bg-card px-4">
+      {/* Left */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent">
-            <Sparkles className="h-4 w-4 text-primary-foreground" />
+        {/* Logo */}
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
+            <Code2 className="h-4 w-4 text-primary-foreground" strokeWidth={2} />
           </div>
-          <h1 className="text-lg font-semibold tracking-tight">
-            <span className="text-primary">Nexo</span>
-            <span className="text-muted-foreground">Codex</span>
-          </h1>
+          <span className="text-sm font-semibold text-foreground">NexoCodex</span>
         </div>
-        
-        <div className="h-6 w-px bg-border" />
-        
-        <div className="w-36">
-          <Select
-            value={language}
-            onChange={(e) => onLanguageChange(e.target.value)}
-            options={languages}
-          />
-        </div>
+
+        <div className="h-5 w-px bg-border" />
+
+        {/* Project */}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onOpenRepo} 
+          className="h-7 gap-2 px-2.5 text-muted-foreground hover:text-foreground"
+        >
+          <FolderOpen className="h-3.5 w-3.5" />
+          <span className="max-w-[140px] truncate text-xs">
+            {repoName || "Open Project"}
+          </span>
+        </Button>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={onCopy} title="Copy code">
-          <Copy className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onDownload} title="Download">
-          <Download className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" title="Settings">
-          <Settings className="h-4 w-4" />
-        </Button>
-        <div className="ml-2 h-6 w-px bg-border" />
-        <Button onClick={onRun} className="gap-2">
-          <Play className="h-4 w-4" />
+      {/* Right */}
+      <div className="flex items-center gap-0.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onSearch}
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            >
+              <Search className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Search (⌘P)</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onCopy}
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Copy</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onDownload}
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Download</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Settings</TooltipContent>
+        </Tooltip>
+
+        <div className="mx-2 h-5 w-px bg-border" />
+
+        <Button 
+          onClick={onRun} 
+          size="sm"
+          className="h-7 gap-1.5 px-3 text-xs font-medium"
+        >
+          <Play className="h-3 w-3" fill="currentColor" />
           Run
         </Button>
       </div>
     </header>
   )
 }
-
