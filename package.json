@@ -1,0 +1,20 @@
+{
+  "name": "nexo-codex",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Nexo Codex Monorepo",
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
