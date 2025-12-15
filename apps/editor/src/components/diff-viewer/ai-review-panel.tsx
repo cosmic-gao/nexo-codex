@@ -11,7 +11,7 @@ import {
   AlertTriangle,
   Info
 } from "lucide-react"
-import { Button, cn, ScrollArea } from "@nexo/ui"
+import { Button, cn } from "@nexo/ui"
 import type { AIModification, PatchValidation } from "@nexo/types"
 import { DiffEditor } from "./diff-editor"
 import { DiffStats, calculateDiffStats } from "./diff-stats"
@@ -191,14 +191,14 @@ export const AIReviewPanel = memo(function AIReviewPanel({
 
   // Main panel
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden" }}>
       {/* Header */}
-      <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-          <span className="text-sm font-medium truncate">AI Review</span>
+      <div style={{ display: "flex", height: 44, flexShrink: 0, alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e5e7eb", padding: "0 12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <Sparkles style={{ width: 16, height: 16, flexShrink: 0, color: "#2d8c82" }} />
+          <span style={{ fontSize: 14, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>AI Review</span>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
           {onUndo && (
             <Button
               variant="ghost"
@@ -228,25 +228,28 @@ export const AIReviewPanel = memo(function AIReviewPanel({
       </div>
 
       {/* Stats */}
-      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-3 py-2 text-xs">
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">Pending</span>
-          <span className={cn(
-            "rounded-full px-1.5 py-0.5 font-medium",
-            pendingCount > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-          )}>
+      <div style={{ display: "flex", flexShrink: 0, flexWrap: "wrap", alignItems: "center", gap: 12, borderBottom: "1px solid #e5e7eb", padding: "8px 12px", fontSize: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color: "#6b7280" }}>Pending</span>
+          <span style={{ 
+            borderRadius: 9999, 
+            padding: "2px 6px", 
+            fontWeight: 500,
+            backgroundColor: pendingCount > 0 ? "rgba(45, 140, 130, 0.1)" : "#f3f4f6",
+            color: pendingCount > 0 ? "#2d8c82" : "#6b7280",
+          }}>
             {pendingCount}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">Applied</span>
-          <span className="rounded-full bg-success/10 px-1.5 py-0.5 font-medium text-success">
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color: "#6b7280" }}>Applied</span>
+          <span style={{ borderRadius: 9999, padding: "2px 6px", fontWeight: 500, backgroundColor: "rgba(34, 197, 94, 0.1)", color: "#22c55e" }}>
             {acceptedCount}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">Rejected</span>
-          <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 font-medium text-destructive">
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color: "#6b7280" }}>Rejected</span>
+          <span style={{ borderRadius: 9999, padding: "2px 6px", fontWeight: 500, backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444" }}>
             {rejectedCount}
           </span>
         </div>
@@ -254,7 +257,7 @@ export const AIReviewPanel = memo(function AIReviewPanel({
 
       {/* Bulk actions */}
       {pendingCount > 1 && (
-        <div className="flex shrink-0 items-center justify-end gap-2 border-b border-border px-3 py-2">
+        <div style={{ display: "flex", flexShrink: 0, alignItems: "center", justifyContent: "flex-end", gap: 8, borderBottom: "1px solid #e5e7eb", padding: "8px 12px" }}>
           <Button
             variant="ghost"
             size="sm"
@@ -272,12 +275,12 @@ export const AIReviewPanel = memo(function AIReviewPanel({
       )}
 
       {/* List */}
-      <ScrollArea className="flex-1">
-        <div className="p-3 space-y-2">
+      <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+        <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           {modifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Info className="h-8 w-8 mb-2 opacity-50" />
-              <p className="text-sm">No modifications</p>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", color: "#6b7280" }}>
+              <Info style={{ width: 32, height: 32, marginBottom: 8, opacity: 0.5 }} />
+              <p style={{ fontSize: 14, margin: 0 }}>No modifications</p>
             </div>
           ) : (
             modifications.map((modification) => (
@@ -294,7 +297,7 @@ export const AIReviewPanel = memo(function AIReviewPanel({
             ))
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   )
 })

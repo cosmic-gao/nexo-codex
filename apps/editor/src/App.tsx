@@ -235,21 +235,44 @@ function App() {
 
         <div
           ref={aiPanelRef}
-          style={{ width: aiPanelWidth }}
-          className={cn(
-            "fixed right-0 top-12 bottom-6 overflow-hidden border-l border-border bg-background",
-            !isResizingAiPanel && "transition-transform duration-200",
-            isReviewPanelOpen ? "translate-x-0" : "translate-x-full"
-          )}
+          style={{ 
+            width: aiPanelWidth,
+            position: "fixed",
+            right: 0,
+            top: 48,
+            bottom: 24,
+            overflow: "hidden",
+            borderLeft: "1px solid #e5e7eb",
+            backgroundColor: "#ffffff",
+            transform: isReviewPanelOpen ? "translateX(0)" : "translateX(100%)",
+            transition: !isResizingAiPanel ? "transform 0.2s ease" : "none",
+            zIndex: 30,
+          }}
         >
           {/* Resize handle */}
           <div
             onMouseDown={handleAiPanelResizeStart}
-            className={cn(
-              "absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10",
-              "hover:bg-primary/30",
-              isResizingAiPanel && "bg-primary/50"
-            )}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              cursor: "col-resize",
+              zIndex: 10,
+              backgroundColor: isResizingAiPanel ? "rgba(45, 140, 130, 0.5)" : "transparent",
+              transition: "background-color 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              if (!isResizingAiPanel) {
+                e.currentTarget.style.backgroundColor = "rgba(45, 140, 130, 0.3)"
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isResizingAiPanel) {
+                e.currentTarget.style.backgroundColor = "transparent"
+              }
+            }}
           />
           <AIReviewPanel
             modifications={modifications}

@@ -15,7 +15,7 @@ import {
   Eye,
   RotateCcw
 } from "lucide-react"
-import { Button, cn } from "@nexo/ui"
+import { Button } from "@nexo/ui"
 import type { AIModification, AIModificationCategory } from "@nexo/types"
 import { DiffStats, calculateDiffStats } from "./diff-stats"
 
@@ -30,15 +30,15 @@ interface AIModificationCardProps {
 }
 
 const categoryIcons: Record<AIModificationCategory, React.ReactNode> = {
-  "bug-fix": <Bug className="h-3 w-3" />,
-  "refactor": <Zap className="h-3 w-3" />,
-  "optimization": <Zap className="h-3 w-3" />,
-  "security": <Shield className="h-3 w-3" />,
-  "style": <Paintbrush className="h-3 w-3" />,
-  "documentation": <FileText className="h-3 w-3" />,
-  "feature": <Plus className="h-3 w-3" />,
-  "test": <TestTube className="h-3 w-3" />,
-  "dependency": <Package className="h-3 w-3" />,
+  "bug-fix": <Bug style={{ width: 12, height: 12 }} />,
+  "refactor": <Zap style={{ width: 12, height: 12 }} />,
+  "optimization": <Zap style={{ width: 12, height: 12 }} />,
+  "security": <Shield style={{ width: 12, height: 12 }} />,
+  "style": <Paintbrush style={{ width: 12, height: 12 }} />,
+  "documentation": <FileText style={{ width: 12, height: 12 }} />,
+  "feature": <Plus style={{ width: 12, height: 12 }} />,
+  "test": <TestTube style={{ width: 12, height: 12 }} />,
+  "dependency": <Package style={{ width: 12, height: 12 }} />,
 }
 
 const categoryLabels: Record<AIModificationCategory, string> = {
@@ -67,41 +67,86 @@ export const AIModificationCard = memo(function AIModificationCard({
   const isAccepted = modification.status === "accepted"
   const isRejected = modification.status === "rejected"
 
+  const getCardStyle = (): React.CSSProperties => {
+    const base: React.CSSProperties = {
+      borderRadius: 8,
+      border: "1px solid",
+      transition: "all 0.2s",
+      overflow: "hidden",
+    }
+    if (isPending) {
+      return { ...base, borderColor: "#e5e7eb", backgroundColor: "#ffffff" }
+    }
+    if (isAccepted) {
+      return { ...base, borderColor: "rgba(34, 197, 94, 0.3)", backgroundColor: "rgba(34, 197, 94, 0.05)" }
+    }
+    return { ...base, borderColor: "rgba(239, 68, 68, 0.3)", backgroundColor: "rgba(239, 68, 68, 0.05)" }
+  }
+
   return (
-    <div
-      className={cn(
-        "rounded-lg border transition-colors",
-        isPending && "border-border bg-card",
-        isAccepted && "border-success/30 bg-success/5",
-        isRejected && "border-destructive/30 bg-destructive/5"
-      )}
-    >
+    <div style={getCardStyle()}>
       {/* Header */}
       <div
-        className="flex cursor-pointer items-center gap-2 p-3"
+        style={{ 
+          display: "flex", 
+          cursor: "pointer", 
+          alignItems: "center", 
+          gap: 8, 
+          padding: 12,
+        }}
         onClick={onToggleExpand}
       >
-        <button className="text-muted-foreground shrink-0">
-          {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        <button style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#6b7280", flexShrink: 0 }}>
+          {isExpanded 
+            ? <ChevronDown style={{ width: 14, height: 14 }} /> 
+            : <ChevronRight style={{ width: 14, height: 14 }} />
+          }
         </button>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground truncate">
+        <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ 
+              fontSize: 14, 
+              fontWeight: 500, 
+              color: "#1f2937", 
+              overflow: "hidden", 
+              textOverflow: "ellipsis", 
+              whiteSpace: "nowrap",
+              maxWidth: "100%",
+            }}>
               {modification.title}
             </span>
-            <span className="shrink-0 inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span style={{ 
+              flexShrink: 0,
+              display: "inline-flex", 
+              alignItems: "center", 
+              gap: 4, 
+              borderRadius: 4, 
+              backgroundColor: "#f3f4f6", 
+              padding: "2px 6px", 
+              fontSize: 10, 
+              fontWeight: 500, 
+              color: "#6b7280",
+            }}>
               {categoryIcons[modification.category]}
               {categoryLabels[modification.category]}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
+          <p style={{ 
+            fontSize: 12, 
+            color: "#6b7280", 
+            overflow: "hidden", 
+            textOverflow: "ellipsis", 
+            whiteSpace: "nowrap", 
+            marginTop: 2,
+            margin: 0,
+          }}>
             {modification.fileName}
           </p>
         </div>
 
         {/* Status badge or actions */}
-        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
           {isPending ? (
             <>
               <Button variant="ghost" size="icon" onClick={onReject} className="h-7 w-7 text-destructive">
@@ -113,7 +158,7 @@ export const AIModificationCard = memo(function AIModificationCard({
             </>
           ) : isAccepted ? (
             <>
-              <span className="text-xs font-medium text-success">Applied</span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: "#22c55e" }}>Applied</span>
               {onRevert && (
                 <Button variant="ghost" size="icon" onClick={onRevert} className="h-7 w-7">
                   <RotateCcw className="h-3.5 w-3.5" />
@@ -121,25 +166,29 @@ export const AIModificationCard = memo(function AIModificationCard({
               )}
             </>
           ) : (
-            <span className="text-xs font-medium text-destructive">Rejected</span>
+            <span style={{ fontSize: 12, fontWeight: 500, color: "#ef4444" }}>Rejected</span>
           )}
         </div>
       </div>
 
       {/* Expanded */}
       {isExpanded && (
-        <div className="border-t border-border px-3 py-3 space-y-3">
-          <p className="text-sm text-foreground break-words">{modification.description}</p>
+        <div style={{ borderTop: "1px solid #e5e7eb", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={{ fontSize: 14, color: "#1f2937", margin: 0, wordBreak: "break-word", lineHeight: 1.5 }}>
+            {modification.description}
+          </p>
           
           {modification.reason && (
-            <p className="text-xs text-muted-foreground break-words">{modification.reason}</p>
+            <p style={{ fontSize: 12, color: "#6b7280", margin: 0, wordBreak: "break-word", lineHeight: 1.4 }}>
+              {modification.reason}
+            </p>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <DiffStats additions={stats.additions} deletions={stats.deletions} fileName="" />
             
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, color: "#6b7280", whiteSpace: "nowrap" }}>
                 {Math.round(modification.confidence * 100)}% confidence
               </span>
               <Button variant="outline" size="sm" onClick={onViewDiff} className="h-7 text-xs shrink-0">
